@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 import { initXR } from './src/xr/session.js';
 import { createCube } from './src/geometry/cube.js';
 import { createPyramid } from './src/geometry/pyramid.js';

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 
 export function createPyramid(position) {
   const geometry = new THREE.ConeGeometry(0.2, 0.3, 4);
