@@ -10,33 +10,54 @@ let renderer, scene, camera;
 let currentShape = 'cube';
 let shapes = [];
 
-const shapeButtons = document.createElement('div');
-shapeButtons.style.position = 'absolute';
-shapeButtons.style.bottom = '10px';
-shapeButtons.style.left = '50%';
-shapeButtons.style.transform = 'translateX(-50%)';
-shapeButtons.style.zIndex = '999';
-shapeButtons.innerHTML = `
-  <button id="cube">🟥 Куб</button>
-  <button id="pyramid">🔺 Піраміда</button>
-  <button id="prism">🟦 Призма</button>
-  <button id="distance">📏 Вимір</button>
-`;
-document.body.appendChild(shapeButtons);
+// Кнопка запуску AR
+const startButton = document.createElement('button');
+startButton.textContent = '▶️ Почати AR';
+startButton.style.position = 'absolute';
+startButton.style.top = '50%';
+startButton.style.left = '50%';
+startButton.style.transform = 'translate(-50%, -50%)';
+startButton.style.padding = '20px 40px';
+startButton.style.fontSize = '18px';
+startButton.style.zIndex = '1000';
+document.body.appendChild(startButton);
 
-document.getElementById('cube').onclick = () => currentShape = 'cube';
-document.getElementById('pyramid').onclick = () => currentShape = 'pyramid';
-document.getElementById('prism').onclick = () => currentShape = 'prism';
-document.getElementById('distance').onclick = () => {
-  if (shapes.length >= 2) {
-    const d = measureDistance(shapes[shapes.length - 2].position, shapes[shapes.length - 1].position);
-    showOverlayText(`Відстань: ${d.toFixed(2)} м`);
-  } else {
-    showOverlayText('Недостатньо фігур для вимірювання');
-  }
-};
+startButton.addEventListener('click', () => {
+  startButton.remove();
+  init();
+});
+
+function setupUI() {
+  const shapeButtons = document.createElement('div');
+  shapeButtons.style.position = 'absolute';
+  shapeButtons.style.bottom = '10px';
+  shapeButtons.style.left = '50%';
+  shapeButtons.style.transform = 'translateX(-50%)';
+  shapeButtons.style.zIndex = '999';
+  shapeButtons.innerHTML = `
+    <button id="cube">🟥 Куб</button>
+    <button id="pyramid">🔺 Піраміда</button>
+    <button id="prism">🟦 Призма</button>
+    <button id="distance">📏 Вимір</button>
+  `;
+  document.body.appendChild(shapeButtons);
+
+  document.getElementById('cube').onclick = () => currentShape = 'cube';
+  document.getElementById('pyramid').onclick = () => currentShape = 'pyramid';
+  document.getElementById('prism').onclick = () => currentShape = 'prism';
+  document.getElementById('distance').onclick = () => {
+    if (shapes.length >= 2) {
+      const d = measureDistance(shapes[shapes.length - 2].position, shapes[shapes.length - 1].position);
+      showOverlayText(`Відстань: ${d.toFixed(2)} м`);
+    } else {
+      showOverlayText('Недостатньо фігур для вимірювання');
+    }
+  };
+}
 
 async function init() {
+  setupUI();
+
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
@@ -76,5 +97,3 @@ async function init() {
   scene.add(controller);
   renderer.setAnimationLoop(() => renderer.render(scene, camera));
 }
-
-init();
