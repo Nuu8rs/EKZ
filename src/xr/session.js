@@ -6,11 +6,28 @@ export async function initXR(renderer, scene, camera) {
     throw new Error('WebXR not supported');
   }
 
-  const session = await navigator.xr.requestSession('immersive-ar', {
+  const isSupported = await navigator.xr.isSessionSupported('immersive-ar');
+  if (!isSupported) {
+    alert('immersive-ar не підтримується на цьому пристрої або браузері');
+    throw new Error('immersive-ar not supported');
+  }
+
+  // Основні параметри
+  const options = {
     requiredFeatures: ['hit-test', 'local-floor'],
     optionalFeatures: ['dom-overlay'],
     domOverlay: { root: document.body }
-  });
+  };
+
+  let session;
+  try {
+    session = await navigator.xr.requestSession('immersive-ar', options);
+  } catch (e) {
+    console.warn('⚠️ Не вдалося створити XR-сесію з domOverlay. Спроба без нього...', e);
+    delete options.domOverlay;
+    options.optionalFeatures = options.optionalFeatures.filter(f => f !== 'dom-overlay');
+    session = await navigator.xr.requestSession('immersive-ar', options);
+  }
 
   renderer.xr.setReferenceSpaceType('local-floor');
   await renderer.xr.setSession(session);
