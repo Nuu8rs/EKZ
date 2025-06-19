@@ -57,11 +57,10 @@ function onClick(event) {
     const point = intersects[0].point;
     let object;
     switch (currentShape) {
-      case 'cube': object = createCube(); break;
-      case 'pyramid': object = createPyramid(); break;
-      case 'prism': object = createPrism(); break;
+      case 'cube': object = createCube(point); break;
+      case 'pyramid': object = createPyramid(point); break;
+      case 'prism': object = createPrism(point); break;
     }
-    object.position.copy(point);
     scene.add(object);
   }
 }
