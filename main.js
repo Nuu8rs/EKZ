@@ -20,6 +20,7 @@ startButton.style.transform = 'translate(-50%, -50%)';
 startButton.style.padding = '20px 40px';
 startButton.style.fontSize = '18px';
 startButton.style.zIndex = '1000';
+
 document.body.appendChild(startButton);
 
 startButton.addEventListener('click', () => {
