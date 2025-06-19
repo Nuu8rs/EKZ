@@ -1,100 +1,82 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
-import { initXR } from './src/xr/session.js';
-import { createCube } from './src/geometry/cube.js';
-import { createPyramid } from './src/geometry/pyramid.js';
-import { createPrism } from './src/geometry/prism.js';
-import { showOverlayText } from './src/ui/overlay.js';
-import { measureDistance } from './src/measurements/distance.js';
+import { initXR } from './xr/session.js';
+import { createCube } from './geometry/cube.js';
+import { createPyramid } from './geometry/pyramid.js';
+import { createPrism } from './geometry/prism.js';
+import { setupOverlay } from './ui/overlay.js';
 
 let renderer, scene, camera;
+let hitTestSource = null;
+let referenceSpace = null;
 let currentShape = 'cube';
-let shapes = [];
-
-// Кнопка запуску AR
-const startButton = document.createElement('button');
-startButton.textContent = '▶️ Почати AR';
-startButton.style.position = 'absolute';
-startButton.style.top = '50%';
-startButton.style.left = '50%';
-startButton.style.transform = 'translate(-50%, -50%)';
-startButton.style.padding = '20px 40px';
-startButton.style.fontSize = '18px';
-startButton.style.zIndex = '1000';
-
-document.body.appendChild(startButton);
-
-startButton.addEventListener('click', () => {
-  startButton.remove();
-  init();
-});
-
-function setupUI() {
-  const shapeButtons = document.createElement('div');
-  shapeButtons.style.position = 'absolute';
-  shapeButtons.style.bottom = '10px';
-  shapeButtons.style.left = '50%';
-  shapeButtons.style.transform = 'translateX(-50%)';
-  shapeButtons.style.zIndex = '999';
-  shapeButtons.innerHTML = `
-    <button id="cube">🟥 Куб</button>
-    <button id="pyramid">🔺 Піраміда</button>
-    <button id="prism">🟦 Призма</button>
-    <button id="distance">📏 Вимір</button>
-  `;
-  document.body.appendChild(shapeButtons);
-
-  document.getElementById('cube').onclick = () => currentShape = 'cube';
-  document.getElementById('pyramid').onclick = () => currentShape = 'pyramid';
-  document.getElementById('prism').onclick = () => currentShape = 'prism';
-  document.getElementById('distance').onclick = () => {
-    if (shapes.length >= 2) {
-      const d = measureDistance(shapes[shapes.length - 2].position, shapes[shapes.length - 1].position);
-      showOverlayText(`Відстань: ${d.toFixed(2)} м`);
-    } else {
-      showOverlayText('Недостатньо фігур для вимірювання');
-    }
-  };
-}
 
 async function init() {
-  setupUI();
+  console.log('🔧 XR init start');
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  // 1. Setup renderer
+  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
   document.body.appendChild(renderer.domElement);
 
+  // 2. Setup scene and camera
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1));
 
-  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-  scene.add(light);
+  // 3. XR session
+  try {
+    const { hitTestSource: hts, referenceSpace: rs } = await initXR(renderer, scene, camera);
+    hitTestSource = hts;
+    referenceSpace = rs;
+    console.log('✅ XR session ready');
+  } catch (err) {
+    alert('XR помилка: ' + err.message);
+    return;
+  }
 
-  const { hitTestSource } = await initXR(renderer, scene, camera);
-
-  const controller = renderer.xr.getController(0);
-  controller.addEventListener('select', () => {
-    const frame = renderer.xr.getFrame();
-    const refSpace = renderer.xr.getReferenceSpace();
-    const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-    if (hitTestResults.length > 0) {
-      const hit = hitTestResults[0];
-      const pose = hit.getPose(refSpace);
-      const pos = new THREE.Vector3().fromArray(pose.transform.position.toArray());
-
-      let shape;
-      if (currentShape === 'cube') shape = createCube(pos);
-      if (currentShape === 'pyramid') shape = createPyramid(pos);
-      if (currentShape === 'prism') shape = createPrism(pos);
-
-      scene.add(shape);
-      shapes.push(shape);
-
-      showOverlayText(`${currentShape.charAt(0).toUpperCase() + currentShape.slice(1)} додано!`);
+  // 4. Touch listener for placing objects
+  document.body.addEventListener('click', () => {
+    if (!lastHitPose) return;
+    let object;
+    switch (currentShape) {
+      case 'cube': object = createCube(); break;
+      case 'pyramid': object = createPyramid(); break;
+      case 'prism': object = createPrism(); break;
     }
+    object.position.copy(lastHitPose);
+    scene.add(object);
   });
 
-  scene.add(controller);
-  renderer.setAnimationLoop(() => renderer.render(scene, camera));
+  setupOverlay(setShape); // setup UI overlay
+  renderer.setAnimationLoop(render);
 }
+
+let lastHitPose = null;
+
+function render(timestamp, frame) {
+  if (frame) {
+    const viewerPose = frame.getViewerPose(referenceSpace);
+    if (viewerPose && hitTestSource) {
+      const hitTestResults = frame.getHitTestResults(hitTestSource);
+      if (hitTestResults.length > 0) {
+        const pose = hitTestResults[0].getPose(referenceSpace);
+        lastHitPose = new THREE.Vector3(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        );
+      }
+    }
+  }
+  renderer.render(scene, camera);
+}
+
+function setShape(shape) {
+  currentShape = shape;
+  console.log('🔁 shape switched to:', shape);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('start-btn')?.addEventListener('click', init);
+});
