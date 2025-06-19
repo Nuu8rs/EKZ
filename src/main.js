@@ -1,82 +1,83 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
-import { initXR } from './xr/session.js';
 import { createCube } from './geometry/cube.js';
 import { createPyramid } from './geometry/pyramid.js';
 import { createPrism } from './geometry/prism.js';
 import { setupOverlay } from './ui/overlay.js';
 
 let renderer, scene, camera;
-let hitTestSource = null;
-let referenceSpace = null;
 let currentShape = 'cube';
+let raycaster, mouse;
+let plane; // Віртуальна підлога
 
-async function init() {
-  console.log('🔧 XR init start');
+init();
 
-  // 1. Setup renderer
-  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+function init() {
+  // 1. Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.xr.enabled = true;
   document.body.appendChild(renderer.domElement);
 
-  // 2. Setup scene and camera
+  // 2. Scene and camera
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera();
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1));
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
+  camera.position.set(0, 1.6, 3);
 
-  // 3. XR session
-  try {
-    const { hitTestSource: hts, referenceSpace: rs } = await initXR(renderer, scene, camera);
-    hitTestSource = hts;
-    referenceSpace = rs;
-    console.log('✅ XR session ready');
-  } catch (err) {
-    alert('XR помилка: ' + err.message);
-    return;
-  }
+  // 3. Освітлення
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
+  const light = new THREE.DirectionalLight(0xffffff, 0.8);
+  light.position.set(1, 2, 3);
+  scene.add(light);
 
-  // 4. Touch listener for placing objects
-  document.body.addEventListener('click', () => {
-    if (!lastHitPose) return;
+  // 4. Плоска "земля"
+  const groundGeometry = new THREE.PlaneGeometry(10, 10);
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x999999, side: THREE.DoubleSide });
+  plane = new THREE.Mesh(groundGeometry, groundMaterial);
+  plane.rotation.x = -Math.PI / 2;
+  scene.add(plane);
+
+  // 5. Raycaster
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  window.addEventListener('click', onClick);
+  window.addEventListener('resize', onWindowResize);
+
+  setupOverlay(setShape);
+  animate();
+}
+
+function onClick(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObject(plane);
+
+  if (intersects.length > 0) {
+    const point = intersects[0].point;
     let object;
     switch (currentShape) {
       case 'cube': object = createCube(); break;
       case 'pyramid': object = createPyramid(); break;
       case 'prism': object = createPrism(); break;
     }
-    object.position.copy(lastHitPose);
+    object.position.copy(point);
     scene.add(object);
-  });
-
-  setupOverlay(setShape); // setup UI overlay
-  renderer.setAnimationLoop(render);
+  }
 }
 
-let lastHitPose = null;
-
-function render(timestamp, frame) {
-  if (frame) {
-    const viewerPose = frame.getViewerPose(referenceSpace);
-    if (viewerPose && hitTestSource) {
-      const hitTestResults = frame.getHitTestResults(hitTestSource);
-      if (hitTestResults.length > 0) {
-        const pose = hitTestResults[0].getPose(referenceSpace);
-        lastHitPose = new THREE.Vector3(
-          pose.transform.position.x,
-          pose.transform.position.y,
-          pose.transform.position.z
-        );
-      }
-    }
-  }
+function animate() {
+  requestAnimationFrame(animate);
   renderer.render(scene, camera);
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 function setShape(shape) {
   currentShape = shape;
-  console.log('🔁 shape switched to:', shape);
+  console.log('🔁 Форма:', shape);
 }
-
-window.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('start-btn')?.addEventListener('click', init);
-});
