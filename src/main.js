@@ -1,9 +1,9 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
-import { initXR } from './src/xr/session.js';
-import { createCube } from './src/geometry/cube.js';
-import { createPyramid } from './src/geometry/pyramid.js';
-import { createPrism } from './src/geometry/prism.js';
-import { setupOverlay } from './src/ui/overlay.js';
+import { initXR } from './xr/session.js';
+import { createCube } from './geometry/cube.js';
+import { createPyramid } from './geometry/pyramid.js';
+import { createPrism } from './geometry/prism.js';
+import { setupOverlay } from './ui/overlay.js';
 
 let renderer, scene, camera;
 let hitTestSource = null;
