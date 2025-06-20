@@ -56,7 +56,18 @@ function init() {
   controls.target.set(0, 0, 0);
   controls.update();
 
-  const planeGeometry = new THREE.PlaneGeometry(20, 20);
+  const size = 20;
+  const segments = 128;
+  const planeGeometry = new THREE.PlaneGeometry(size, size, segments, segments);
+
+  for (let i = 0; i < planeGeometry.attributes.position.count; i++) {
+    const x = planeGeometry.attributes.position.getX(i);
+    const y = planeGeometry.attributes.position.getY(i);
+    const elevation = 0.2 * Math.sin(x * 0.5) * Math.cos(y * 0.5);
+    planeGeometry.attributes.position.setZ(i, elevation);
+  }
+  planeGeometry.computeVertexNormals();
+
   const planeMaterial = new THREE.MeshStandardMaterial({
     color: 0x222222,
     side: THREE.DoubleSide,
@@ -107,11 +118,9 @@ function onPointerMove(event) {
 
 function onClick(event) {
   if (event.target.closest('#overlay')) return;
-
   updateMouseCoords(event);
   const intersects = raycaster.intersectObject(ground);
   if (intersects.length === 0) return;
-
   const point = intersects[0].point;
 
   if (copiedObject) {
@@ -132,7 +141,6 @@ function onClick(event) {
       selectedObjects.push(obj);
       obj.material.emissive = new THREE.Color(0x2222ff);
     }
-
     if (selectedObjects.length === 2) {
       const [a, b] = selectedObjects;
       const d = measureDistance(a.position, b.position).toFixed(2);
@@ -157,19 +165,16 @@ function initUI() {
   const overlay = document.getElementById('overlay');
   const buttons = ['Куб', 'Піраміда', 'Призма'];
   const shapes = ['cube', 'pyramid', 'prism'];
-
   buttons.forEach((label, i) => {
     const btn = document.createElement('button');
     btn.textContent = label;
     btn.dataset.shape = shapes[i];
-
     btn.onclick = () => {
       currentShape = shapes[i];
       console.log('🔁 Обрана форма:', currentShape);
       [...overlay.children].forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     };
-
     if (i === 0) btn.classList.add('active');
     overlay.appendChild(btn);
   });
@@ -177,26 +182,19 @@ function initUI() {
 
 function animate() {
   requestAnimationFrame(animate);
-
   const speed = 0.1;
   const dir = new THREE.Vector3();
-
   if (keysPressed['w']) dir.z -= 1;
   if (keysPressed['s']) dir.z += 1;
   if (keysPressed['a']) dir.x -= 1;
   if (keysPressed['d']) dir.x += 1;
-
   if (dir.lengthSq() > 0) {
     dir.normalize();
     const move = dir.clone().applyQuaternion(camera.quaternion);
     camera.position.addScaledVector(move, speed);
     controls.target.addScaledVector(move, speed);
   }
-
-  if (camera.position.y < 1.2) {
-    camera.position.y = 1.2;
-  }
-
+  if (camera.position.y < 1.2) camera.position.y = 1.2;
   controls.update();
   renderer.render(scene, camera);
 }
