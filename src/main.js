@@ -1,4 +1,5 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
+import * as THREE from './three.module.js';
+import { OrbitControls } from './OrbitControls.js';
 import { createCube } from './geometry/cube.js';
 import { createPyramid } from './geometry/pyramid.js';
 import { createPrism } from './geometry/prism.js';
@@ -10,6 +11,8 @@ let raycaster, mouse, ground, cursor;
 let currentShape = 'cube';
 let copiedObject = null;
 let selectedObjects = [];
+let controls;
+const keysPressed = {};
 
 init();
 
@@ -47,6 +50,12 @@ function init() {
   camera.position.set(0, 2, 5);
   scene.add(camera);
 
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.target.set(0, 0, 0);
+  controls.update();
+
   const planeGeometry = new THREE.PlaneGeometry(20, 20);
   const planeMaterial = new THREE.MeshStandardMaterial({
     color: 0x222222,
@@ -72,6 +81,8 @@ function init() {
 
   document.addEventListener('pointermove', onPointerMove);
   document.addEventListener('click', onClick);
+  document.addEventListener('keydown', e => keysPressed[e.key.toLowerCase()] = true);
+  document.addEventListener('keyup', e => keysPressed[e.key.toLowerCase()] = false);
 
   initUI();
   animate();
@@ -166,5 +177,26 @@ function initUI() {
 
 function animate() {
   requestAnimationFrame(animate);
+
+  const speed = 0.1;
+  const dir = new THREE.Vector3();
+
+  if (keysPressed['w']) dir.z -= 1;
+  if (keysPressed['s']) dir.z += 1;
+  if (keysPressed['a']) dir.x -= 1;
+  if (keysPressed['d']) dir.x += 1;
+
+  if (dir.lengthSq() > 0) {
+    dir.normalize();
+    const move = dir.clone().applyQuaternion(camera.quaternion);
+    camera.position.addScaledVector(move, speed);
+    controls.target.addScaledVector(move, speed);
+  }
+
+  if (camera.position.y < 1.2) {
+    camera.position.y = 1.2;
+  }
+
+  controls.update();
   renderer.render(scene, camera);
 }
