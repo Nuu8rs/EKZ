@@ -16,27 +16,55 @@ init();
 function init() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
   document.body.appendChild(renderer.domElement);
+  renderer.domElement.style.display = 'block';
+  renderer.domElement.style.position = 'absolute';
+  renderer.domElement.style.top = '0';
+  renderer.domElement.style.left = '0';
 
   scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x111111);
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+  dirLight.position.set(5, 10, 7.5);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  dirLight.shadow.camera.near = 0.5;
+  dirLight.shadow.camera.far = 50;
+  dirLight.shadow.camera.left = -10;
+  dirLight.shadow.camera.right = 10;
+  dirLight.shadow.camera.top = 10;
+  dirLight.shadow.camera.bottom = -10;
+  scene.add(ambientLight, dirLight);
 
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
   camera.position.set(0, 2, 5);
   scene.add(camera);
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
-
-  const planeGeometry = new THREE.PlaneGeometry(10, 10);
-  const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x008800, side: THREE.DoubleSide });
+  const planeGeometry = new THREE.PlaneGeometry(20, 20);
+  const planeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x222222,
+    side: THREE.DoubleSide,
+    roughness: 0.8,
+    metalness: 0.2,
+  });
   ground = new THREE.Mesh(planeGeometry, planeMaterial);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
+  ground.name = 'ground';
   scene.add(ground);
 
   const cursorGeo = new THREE.SphereGeometry(0.05, 16, 16);
-  const cursorMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+  const cursorMat = new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0x333300 });
   cursor = new THREE.Mesh(cursorGeo, cursorMat);
   cursor.visible = false;
+  cursor.castShadow = true;
   scene.add(cursor);
 
   raycaster = new THREE.Raycaster();
@@ -45,9 +73,14 @@ function init() {
   document.addEventListener('pointermove', onPointerMove);
   document.addEventListener('click', onClick);
 
-  createUI();
-
+  initUI();
   animate();
+}
+
+function updateMouseCoords(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
 }
 
 function onPointerMove(event) {
@@ -62,6 +95,8 @@ function onPointerMove(event) {
 }
 
 function onClick(event) {
+  if (event.target.closest('#overlay')) return;
+
   updateMouseCoords(event);
   const intersects = raycaster.intersectObject(ground);
   if (intersects.length === 0) return;
@@ -76,7 +111,6 @@ function onClick(event) {
     return;
   }
 
-  // Выбор объекта
   raycaster.setFromCamera(mouse, camera);
   const objects = scene.children.filter(o => o.geometry && o !== ground && o !== cursor);
   const picked = raycaster.intersectObjects(objects);
@@ -108,35 +142,26 @@ function onClick(event) {
   scene.add(obj);
 }
 
-function updateMouseCoords(event) {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
-}
+function initUI() {
+  const overlay = document.getElementById('overlay');
+  const buttons = ['Куб', 'Піраміда', 'Призма'];
+  const shapes = ['cube', 'pyramid', 'prism'];
 
-function createUI() {
-  const buttons = ['cube', 'pyramid', 'prism'];
-  const ui = document.createElement('div');
-  ui.style.position = 'absolute';
-  ui.style.top = '10px';
-  ui.style.left = '10px';
-  ui.style.background = 'rgba(0,0,0,0.5)';
-  ui.style.color = 'white';
-  ui.style.padding = '10px';
-  ui.style.zIndex = '10';
-
-  buttons.forEach(shape => {
+  buttons.forEach((label, i) => {
     const btn = document.createElement('button');
-    btn.textContent = shape;
-    btn.style.marginRight = '5px';
-    btn.onclick = () => {
-      currentShape = shape;
-      console.log('🔁 Форма:', shape);
-    };
-    ui.appendChild(btn);
-  });
+    btn.textContent = label;
+    btn.dataset.shape = shapes[i];
 
-  document.body.appendChild(ui);
+    btn.onclick = () => {
+      currentShape = shapes[i];
+      console.log('🔁 Обрана форма:', currentShape);
+      [...overlay.children].forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+
+    if (i === 0) btn.classList.add('active');
+    overlay.appendChild(btn);
+  });
 }
 
 function animate() {
